@@ -7,23 +7,34 @@
 # Step 1: Download SRA file
 prefetch SRR28640601 -O data
 fasterq-dump SRR28640601 -O data/ -e 6 --split-files
-gzip data/raw/*.fastq
+gzip data/*.fastq
 
 # Step 2: Quality check
 fastqc SRR28640601*.fastq. -o results/qc/
 multiqc results/qc/ -o results/qc/
 
 # Step 3: Trimming
-trimmomatic PE -threads 6 \
-data/raw/*_1.fastq.gz data/raw/*_2.fastq.gz \
-data/trimmed/R1_paired.fq.gz data/trimmed/R1_unpaired.fq.gz \
-data/trimmed/R2_paired.fq.gz data/trimmed/R2_unpaired.fq.gz \
-ILLUMINACLIP:TruSeq3-PE.fa:2:30:10 \
+java -jar /usr/share/java/trimmomatic.jar PE -threads 6 \
+SRR28640601_1.fastq SRR28640601_2.fastq \
+R1_paired.fq R1_unpaired.fq \
+R2_paired.fq R2_unpaired.fq \
+ILLUMINACLIP:/usr/share/trimmomatic/TruSeq3-PE.fa:2:30:10 \
 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:50
 
+# step 4: Reference genome & indexing
+mkdir reference
+cd reference
+wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
+mv Homo_sapiens.GRCh38.dna.primary_assembly.fa human38.fa
+bwa index human38.fa
+samtools faidx human38.fa
+gatk CreateSequenceDictionary \
+-R Human38.fa
+
 # Step 4: Alignment
-bwa mem -t 8 reference/GRCh38.fa \
-data/trimmed/R1_paired.fq.gz data/trimmed/R2_paired.fq.gz > results/bam/aligned.sam
+bwa mem -t 8 reference/human38.fa \
+R1_paired.fq.gz R2_paired.fq.gz > results/bam/aligned.sam
 
 # Step 5: BAM processing
 samtools view -Sb results/bam/aligned.sam > results/bam/aligned.bam
