@@ -1,16 +1,16 @@
 #!/bin/bash
 
 # =========================
-# WES PIPELINE - GRCh38
+# WES PIPELINE - 
 # =========================
 
-# Step 1: Download
-prefetch SRR28640601 -O data/raw/
-fasterq-dump SRR28640601 -O data/raw/ -e 6 --split-files
+# Step 1: Download SRA file
+prefetch SRR28640601 -O data
+fasterq-dump SRR28640601 -O data/ -e 6 --split-files
 gzip data/raw/*.fastq
 
-# Step 2: QC
-fastqc data/raw/*.fastq.gz -o results/qc/
+# Step 2: Quality check
+fastqc SRR28640601*.fastq. -o results/qc/
 multiqc results/qc/ -o results/qc/
 
 # Step 3: Trimming
