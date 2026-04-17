@@ -20,6 +20,8 @@ R1_paired.fq R1_unpaired.fq \
 R2_paired.fq R2_unpaired.fq \
 ILLUMINACLIP:/usr/share/trimmomatic/TruSeq3-PE.fa:2:30:10 \
 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:50
+# again QC 
+fastqc SRR28640601_R1_paired.fq SRR28640601_R2_paired.fq
 
 # step 4: Reference genome & indexing
 mkdir reference
@@ -34,7 +36,7 @@ gatk CreateSequenceDictionary \
 
 # Step 4: Alignment
 bwa mem -t 8 reference/human38.fa \
-R1_paired.fq.gz R2_paired.fq.gz > results/bam/aligned.sam
+R1_paired.fq. R2_paired.fq. > results/bam/aligned.sam
 
 # Step 5: BAM processing
 samtools view -Sb results/bam/aligned.sam > results/bam/aligned.bam
@@ -58,7 +60,7 @@ gatk HaplotypeCaller \
 
 # Step 8: Filtering
 gatk VariantFiltration \
--R reference/GRCh38.fa \
+-R reference/human38.fa \
 -V results/vcf/raw.vcf \
 -O results/vcf/filtered.vcf \
 --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0" \
@@ -68,4 +70,4 @@ gatk VariantFiltration \
 vep -i results/vcf/filtered.vcf \
 -o results/annotation/annotated.vcf \
 --cache --offline \
---assembly GRCh38
+--assembly human38
