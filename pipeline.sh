@@ -1,18 +1,23 @@
 #!/bin/bash
 
-# =========================
+
 # WES PIPELINE - 
-# =========================
+
+# Step 0: Create folders
+
+mkdir -p data results/qc results/multiqc results/trimmed results/bam results/vcf results/annotation results/reports ref
 
 # Step 1: Download SRA file
 
 prefetch SRR28640601 -O data
 fasterq-dump SRR28640601 -O data/ -e 6 --split-files
 
+cd data
+
 # Step 2: Quality check
 
 fastqc SRR28640601*.fastq -o results/qc/
-multiqc results/qc/ -o results/qc/
+multiqc results/qc/ -o results/multiqc
 
 # Step 3: Trimming
 
@@ -26,11 +31,12 @@ LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:50
 # Step 5: Post-trim QC
 
 fastqc results/trimmed/R1_paired.fq results/trimmed/R2_paired.fq -o results/qc/
-multiqc results/qc/ -o results/qc/
+multiqc results/qc/ -o results/multiqc
+
+cd ..
 
 # step 6: Reference genome & indexing
 
-mkdir ref
 cd ref
 wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
@@ -43,11 +49,14 @@ samtools faidx human38.fa
 gatk CreateSequenceDictionary \
 -R human38.fa
 
+cd ..
+
 # Step 4: Alignment
+
 bwa mem -t 8 \
 -R "@RG\tID:1\tSM:sample1\tPL:ILLUMINA" \
 ref/human38.fa \
-results/trimmed/R1_paired.fq R2_paired.fq > results/bam/aligned.sam
+results/trimmed/R1_paired.fq results/trimmed/R2_paired.fq > results/bam/aligned.sam
 
 # Step 5: BAM processing
 
@@ -71,17 +80,23 @@ gatk HaplotypeCaller \
 -O results/vcf/raw.g.vcf \
 -ERC GVCF
 
+ gatk GenotypeGVCFs \
+-R ref/human38.fa \
+-V results/vcf/raw.g.vcf \
+-O results/vcf/raw.vcf
+
 # Step 8: Filtering
 
 gatk VariantFiltration \
 -R ref/human38.fa \
--V results/vcf/raw.g.vcf \
+-V results/vcf/raw.vcf \
 -O results/vcf/filtered.vcf \
 --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0" \
 --filter-name "BasicFilter"
 
 # Step 9: Annotation (VEP)
+
 vep -i results/vcf/filtered.vcf \
 -o results/annotation/annotated.vcf \
 --cache --offline \
---assembly human38
+--assembly GRCH38
