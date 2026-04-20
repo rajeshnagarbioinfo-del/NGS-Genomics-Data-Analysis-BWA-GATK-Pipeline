@@ -44,7 +44,9 @@ gatk CreateSequenceDictionary \
 -R human38.fa
 
 # Step 4: Alignment
-bwa mem -t 8 ref/human38.fa \
+bwa mem -t 8 \
+-R "@RG\tID:1\tSM:sample1\tPL:ILLUMINA" \
+ref/human38.fa \
 results/trimmed/R1_paired.fq R2_paired.fq > results/bam/aligned.sam
 
 # Step 5: BAM processing
