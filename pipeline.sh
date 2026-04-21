@@ -94,6 +94,20 @@ gatk VariantFiltration \
 --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0" \
 --filter-name "BasicFilter"
 
+bgzip filtered.vcf o- results/vcf/
+
+#SNP call
+gatk SelectVariants \
+-V filtered.vcf.gz \
+-select-type SNP \
+-O snp.vcf.gz
+
+#INDEL call
+gatk SelectVariants \
+-V filtered.vcf.gz \
+-select-type INDEL \
+-O indel.vcf.gz
+
 # Step 9: Annotation (VEP)
 
 vep -i results/vcf/filtered.vcf \
