@@ -148,7 +148,7 @@ gatk SelectVariants \
 cd ~/dna_pipeline/ensembl-vep
 
 ./vep -i ~/dna_pipeline/results/vcf/snp_pass.vcf.gz \
--o ~/dna_pipeline/results/annotation/snp_annotated.vcf \
+-o ~/dna_pipeline/results/snp_annotated.vcf \
 --cache \
 --offline \
 --species homo_sapiens \
@@ -170,7 +170,7 @@ cd ~/dna_pipeline/ensembl-vep
 # Step 16: INDEL Annotation (VEP)
 
 ./vep -i ~/dna_pipeline/results/vcf/indel_pass.vcf.gz \
--o ~/dna_pipeline/results/annotation/indel_annotated.vcf \
+-o ~/dna_pipeline/results/indel_annotated.vcf \
 --cache \
 --offline \
 --species homo_sapiens \
