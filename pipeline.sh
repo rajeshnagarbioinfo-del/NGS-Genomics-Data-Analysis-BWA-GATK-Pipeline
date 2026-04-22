@@ -28,21 +28,21 @@ results/trimmed/R2_paired.fq results/trimmed/R2_unpaired.fq \
 ILLUMINACLIP:/usr/share/trimmomatic/TruSeq3-PE.fa:2:30:10 \
 LEADING:3 TRAILING:3 SLIDINGWINDOW:4:20 MINLEN:50
 
-# Step 5: Post-trim QC
+# Step 4: Post-trim QC
 
 fastqc results/trimmed/R1_paired.fq results/trimmed/R2_paired.fq -o results/qc/
 multiqc results/qc/ -o results/multiqc
 
 cd ..
 
-# step 6: Reference genome & indexing
+# step 5: Reference genome & indexing
 
 cd ref
 wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 gunzip Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz
 mv Homo_sapiens.GRCh38.dna.primary_assembly.fa human38.fa
 
-#step 7: Indexing
+#step 6: Indexing
 
 bwa index human38.fa
 samtools faidx human38.fa
@@ -51,20 +51,20 @@ gatk CreateSequenceDictionary \
 
 cd ..
 
-# Step 4: Alignment
+# Step 7: Alignment
 
 bwa mem -t 8 \
 -R "@RG\tID:1\tSM:sample1\tPL:ILLUMINA" \
 ref/human38.fa \
 results/trimmed/R1_paired.fq results/trimmed/R2_paired.fq > results/bam/aligned.sam
 
-# Step 5: BAM processing
+# Step 8: BAM processing
 
 samtools view -Sb results/bam/aligned.sam > results/bam/aligned.bam
 samtools sort results/bam/aligned.bam -o results/bam/sorted.bam
 samtools index results/bam/sorted.bam
 
-# Step 6: Mark duplicates
+# Step 9: Mark duplicates
 
 gatk MarkDuplicates \
 -I results/bam/sorted.bam \
@@ -73,7 +73,7 @@ gatk MarkDuplicates \
 
 samtools index results/bam/dedup.bam
 
-# Step 7: Variant Calling
+# Step 10: Variant Calling
 gatk HaplotypeCaller \
 -R ref/human38.fa \
 -I results/bam/dedup.bam \
@@ -85,7 +85,7 @@ gatk HaplotypeCaller \
 -V results/vcf/raw.g.vcf \
 -O results/vcf/raw.vcf
 
-# Step 8: Filtering
+# Step 11: Filtering
 
 gatk VariantFiltration \
 -R ref/human38.fa \
@@ -94,23 +94,96 @@ gatk VariantFiltration \
 --filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0" \
 --filter-name "BasicFilter"
 
-bgzip filtered.vcf o- results/vcf/
+bgzip -c results/vcf/filtered.vcf > results/vcf/filtered.vcf.gz
+tabix -p vcf results/vcf/filtered.vcf.gz
 
-#SNP call
+# step 12 : SNP & INDEL split
+#SNP
 gatk SelectVariants \
 -V filtered.vcf.gz \
 -select-type SNP \
 -O snp.vcf.gz
 
-#INDEL call
+tabix -p vcf results/vcf/snp.vcf.gz
+
+#INDEL 
 gatk SelectVariants \
 -V filtered.vcf.gz \
 -select-type INDEL \
 -O indel.vcf.gz
 
-# Step 9: Annotation (VEP)
+tabix -p vcf results/vcf/indel.vcf.gz
 
-vep -i results/vcf/filtered.vcf \
--o results/annotation/annotated.vcf \
---cache --offline \
---assembly GRCH38
+
+# Step 13: SNP Filtering
+---------------------------------------------
+gatk VariantFiltration \
+-V results/vcf/snp.vcf.gz \
+-O results/vcf/snp_filtered.vcf.gz \
+--filter-expression "QD < 2.0 || FS > 60.0 || MQ < 40.0 || SOR > 3.0" \
+--filter-name "SNP_Filter"
+
+gatk SelectVariants \
+-V results/vcf/snp_filtered.vcf.gz \
+--exclude-filtered \
+-O results/vcf/snp_pass.vcf.gz
+
+
+# Step 14: INDEL Filtering
+---------------------------------------------
+gatk VariantFiltration \
+-V results/vcf/indel.vcf.gz \
+-O results/vcf/indel_filtered.vcf.gz \
+--filter-expression "QD < 2.0 || FS > 200.0 || ReadPosRankSum < -20.0" \
+--filter-name "INDEL_Filter"
+
+gatk SelectVariants \
+-V results/vcf/indel_filtered.vcf.gz \
+--exclude-filtered \
+-O results/vcf/indel_pass.vcf.gz
+
+
+# Step 15: SNP Annotation (VEP)
+-----------------------------------------------
+cd ~/dna_pipeline/ensembl-vep
+
+./vep -i ~/dna_pipeline/results/vcf/snp_pass.vcf.gz \
+-o ~/dna_pipeline/results/annotation/snp_annotated.vcf \
+--cache \
+--offline \
+--species homo_sapiens \
+--assembly GRCh38 \
+--vcf \
+--symbol \
+--hgvs \
+--protein \
+--sift b \
+--polyphen b \
+--canonical \
+--biotype \
+--af \
+--fasta ~/dna_pipeline/ref/human38.fa \
+--fork 4 \
+--force_overwrite
+
+
+# Step 16: INDEL Annotation (VEP)
+
+./vep -i ~/dna_pipeline/results/vcf/indel_pass.vcf.gz \
+-o ~/dna_pipeline/results/annotation/indel_annotated.vcf \
+--cache \
+--offline \
+--species homo_sapiens \
+--assembly GRCh38 \
+--vcf \
+--symbol \
+--hgvs \
+--protein \
+--sift b \
+--polyphen b \
+--canonical \
+--biotype \
+--af \
+--fasta ~/dna_pipeline/ref/human38.fa \
+--fork 4 \
+--force_overwrite
