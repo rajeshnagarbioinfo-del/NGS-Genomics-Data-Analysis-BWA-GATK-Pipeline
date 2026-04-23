@@ -154,14 +154,7 @@ cd ~/dna_pipeline/ensembl-vep
 --species homo_sapiens \
 --assembly GRCh38 \
 --vcf \
---symbol \
---hgvs \
---protein \
---sift b \
---polyphen b \
---canonical \
---biotype \
---af \
+--everything \
 --fasta ~/dna_pipeline/ref/human38.fa \
 --fork 4 \
 --force_overwrite
@@ -176,14 +169,7 @@ cd ~/dna_pipeline/ensembl-vep
 --species homo_sapiens \
 --assembly GRCh38 \
 --vcf \
---symbol \
---hgvs \
---protein \
---sift b \
---polyphen b \
---canonical \
---biotype \
---af \
+--everything \
 --fasta ~/dna_pipeline/ref/human38.fa \
 --fork 4 \
 --force_overwrite
